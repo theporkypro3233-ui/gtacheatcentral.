@@ -431,7 +431,7 @@ function editDistance(a,b){
 function searchScore(cheat,query){
  if(!query)return 10;
  const name=normalizeQuery(cheat.name);
- const text=normalizeQuery([cheat.name,cheat.cat,cheat.desc,cheat.code,platformCode(cheat),cheat.phone,cheatAliases[cheat.name]||''].join(' '));
+ const text=normalizeQuery([cheat.name,cheat.cat,cheat.desc,cheat.code,platformCode(cheat),pcCommands[cheat.name]||'',cheat.phone,cheatAliases[cheat.name]||''].join(' '));
  if(name===query)return 100;
  if(name.includes(query))return 85;
  if(text.includes(query))return 70;
