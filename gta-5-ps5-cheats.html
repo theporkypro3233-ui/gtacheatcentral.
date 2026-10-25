@@ -215,9 +215,37 @@ function displayCombo(code){
   return `<span class="code-token">${token}</span>`;
  }).join('')+'</span>';
 }
+
+// Smart typo-tolerant search shared by PS5, Xbox and PC pages.
+const smartPcCommands={"Slow motion": "SLOWMO", "Slow-motion aiming": "DEADEYE", "Fast run": "CATCHME", "Fast swim": "GOTGILLS", "Parachute": "SKYDIVE", "Moon gravity": "FLOATER", "Slippery cars": "SNOWDAY", "Stunt plane": "BARNSTORM", "Duster plane": "FLYSPRAY", "Caddy golf cart": "HOLEIN1", "PCJ-600 motorcycle": "ROCKET", "Trashmaster garbage truck": "TRASHED", "Stretch limousine": "VINEWOOD", "All weapons & ammo": "TOOLUP", "Explosive melee attacks": "HOTHANDS", "Flaming bullets": "INCENDIARY", "Explosive bullets": "HIGHEX", "Buzzard attack helicopter": "BUZZOFF", "Comet sports car": "COMET", "Rapid GT sports car": "RAPIDGT", "Sanchez dirt bike": "OFFROAD", "BMX bicycle": "BANDIT", "Invincibility (5 minutes)": "PAINKILLER", "Max health & armor": "TURTLE", "Super jump": "HOPTOIT", "Recharge special ability": "POWERUP", "Skyfall": "SKYFALL", "Lower wanted level": "LAWYERUP", "Raise wanted level": "FUGITIVE", "Change weather": "MAKEITRAIN", "Drunk mode": "LIQUOR"};
+const smartAliases={"Invincibility (5 minutes)": "god mode immortal invincible invinsible invincable", "Max health & armor": "health armour heal life helath heath healt", "All weapons & ammo": "guns weapon wepons weapens ammunition", "Buzzard attack helicopter": "heli hellicopter helicopter chopper", "Lower wanted level": "police cops lose cops remove stars wanted", "Raise wanted level": "police cops stars wanted", "Fast run": "sprint running speed", "Fast swim": "swimming water speed", "Super jump": "high jump jumping", "Parachute": "skydiving chute", "Moon gravity": "low gravity float", "Change weather": "rain sunshine storm", "BMX bicycle": "bike bicycle", "Sanchez dirt bike": "motorcycle bike", "PCJ-600 motorcycle": "motorbike bike"};
+function smartNormalize(v){return String(v||'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim()}
+function smartDistance(a,b){
+ if(a===b)return 0;
+ if(Math.abs(a.length-b.length)>2)return 3;
+ const prev=Array.from({length:b.length+1},(_,i)=>i),curr=[];
+ let prevPrev=prev.slice();
+ for(let i=1;i<=a.length;i++){
+  curr[0]=i;
+  for(let j=1;j<=b.length;j++){
+   curr[j]=Math.min(curr[j-1]+1,prev[j]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1),i>1&&j>1&&a[i-1]===b[j-2]&&a[i-2]===b[j-1]?prevPrev[j-2]+1:999);
+  }
+  prevPrev=prev.slice();for(let j=0;j<=b.length;j++)prev[j]=curr[j];
+ }
+ return prev[b.length];
+}
+function smartMatch(cheat,raw){
+ const q=smartNormalize(raw);if(!q)return true;
+ const name=smartNormalize(cheat.name);
+ const text=smartNormalize([cheat.name,cheat.cat,cheat.desc,cheat.code,cheat.phone,smartPcCommands[cheat.name]||'',smartAliases[cheat.name]||''].join(' '));
+ if(text.includes(q))return true;
+ const words=text.split(' ').filter(Boolean);
+ return q.split(' ').filter(Boolean).every(term=>words.some(w=>w.startsWith(term)||(term.length>=4&&Math.abs(w.length-term.length)<=2&&smartDistance(term,w)<=(term.length>=7?2:1))));
+}
+
 function render(){
  const q=search.value.trim().toLowerCase();
- const shown=cheats.filter(c=>(activeCategory==="All"||c.cat===activeCategory)&&[c.name,c.cat,c.desc,c.code,platformCode(c),c.phone].join(" ").toLowerCase().includes(q));
+ const shown=cheats.filter(c=>(activeCategory==="All"||c.cat===activeCategory)&&smartMatch(c,q));
  grid.innerHTML=shown.map((c,i)=>`<article class="card"><div class="card-top"><div><h3>${c.name}</h3></div><span class="tag">${c.cat}</span></div><p>${c.desc}</p><div class="platform">${selectedPlatform} · Story Mode</div><div class="combo"><strong>${selectedPlatform==="PC"?"PC CONSOLE COMMAND":"BUTTON COMBO"}</strong>${selectedPlatform==="PC"?`<span class="pc-command">${platformCode(c)}</span>`:displayCombo(platformCode(c))}</div><div class="combo"><strong>IN-GAME PHONE</strong>${c.phone}</div><div class="actions"><button class="copy" data-copy="${i}">${selectedPlatform==="PC"?"Copy PC command":"Copy "+selectedPlatform+" combo"}</button><button class="secondary" data-phone="${i}" title="Copy phone number">Copy phone</button></div></article>`).join("");
  document.getElementById("count").textContent=`${shown.length} ${shown.length===1?"cheat":"cheats"}`;
  document.getElementById("empty").style.display=shown.length?"none":"block";
